@@ -52,9 +52,9 @@ import com.google.protobuf.ByteString;
 public class SimpleCanalConnector implements CanalConnector {
 
     private static final Logger  logger                = LoggerFactory.getLogger(SimpleCanalConnector.class);
-    private SocketAddress        address;
-    private String               username;
-    private String               password;
+    private final SocketAddress        address;
+    private final String               username;
+    private final String               password;
     private int                  soTimeout             = 60000;                                              // milliseconds
     private int                  idleTimeout           = 60 * 60 * 1000;                                     // client和server之间的空闲链接超时的时间,默认为1小时
     private String               filter;                                                                     // 记录上一次的filter提交值,便于自动重试时提交
@@ -64,18 +64,18 @@ public class SimpleCanalConnector implements CanalConnector {
     private SocketChannel        channel;
     private ReadableByteChannel  readableChannel;
     private WritableByteChannel  writableChannel;
-    private List<Compression>    supportedCompressions = new ArrayList<>();
-    private ClientIdentity       clientIdentity;
+//    private final List<Compression>    supportedCompressions = new ArrayList<>();
+    private final ClientIdentity       clientIdentity;
     private ClientRunningMonitor runningMonitor;                                                             // 运行控制
     private ZkClientx            zkClientx;
-    private BooleanMutex         mutex                 = new BooleanMutex(false);
+    private final BooleanMutex         mutex                 = new BooleanMutex(false);
     private volatile boolean     connected             = false;                                              // 代表connected是否已正常执行，因为有HA，不代表在工作中
     private boolean              rollbackOnConnect     = true;                                               // 是否在connect链接成功后，自动执行rollback操作
     private boolean              rollbackOnDisConnect  = false;                                              // 是否在connect链接成功后，自动执行rollback操作
     private boolean              lazyParseEntry        = false;                                              // 是否自动化解析Entry对象,如果考虑最大化性能可以延后解析
     // 读写数据分别使用不同的锁进行控制，减小锁粒度,读也需要排他锁，并发度容易造成数据包混乱，反序列化失败
-    private Object               readDataLock          = new Object();
-    private Object               writeDataLock         = new Object();
+    private final Object               readDataLock          = new Object();
+    private final Object               writeDataLock         = new Object();
 
     private volatile boolean     running               = false;
 
@@ -162,7 +162,7 @@ public class SimpleCanalConnector implements CanalConnector {
             }
             //
             Handshake handshake = Handshake.parseFrom(p.getBody());
-            supportedCompressions.add(handshake.getSupportedCompressions());
+//            supportedCompressions.add(handshake.getSupportedCompressions());
             //
             ByteString seed = handshake.getSeeds(); // seed for auth
             String newPasswd = password;
@@ -439,6 +439,7 @@ public class SimpleCanalConnector implements CanalConnector {
             runningMonitor.setClientData(clientData);
             runningMonitor.setListener(new ClientRunningListener() {
 
+                @Override
                 public InetSocketAddress processActiveEnter() {
                     InetSocketAddress address = doConnect();
                     mutex.set(true);
@@ -453,6 +454,7 @@ public class SimpleCanalConnector implements CanalConnector {
                     return address;
                 }
 
+                @Override
                 public void processActiveExit() {
                     mutex.set(false);
                     doDisconnect();
@@ -481,6 +483,7 @@ public class SimpleCanalConnector implements CanalConnector {
         }
     }
 
+    @Override
     public boolean checkValid() {
         if (zkClientx != null) {
             return mutex.state();
